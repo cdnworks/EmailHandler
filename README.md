@@ -1,5 +1,5 @@
 # EmailHandler
- A simple DLL to add SMTP email sending functionality to your project, using MailKit
+ A simple DLL to add async SMTP email sending functionality to your project, using MailKit
 
 ## How to build
  1. Clone this repo with:
