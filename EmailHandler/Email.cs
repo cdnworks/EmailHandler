@@ -74,7 +74,7 @@ namespace EmailHandler
                     //try to connect to the SMTP server
                     try
                     {
-                        client.Connect("smtp.gmail.com", 465, SecureSocketOptions.SslOnConnect);
+                        client.Connect(host, port, SecureSocketOptions.SslOnConnect);
                     }
                     catch (SmtpCommandException ex)
                     {
