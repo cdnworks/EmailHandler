@@ -9,15 +9,13 @@ namespace EmailHandler
         //This class pulls a number of input parameters to construct a MIME formatted email message, which is then sent using SMTP.
         //the message is logged with a timestamp after a successful send, or after attempting and failing to send up to 3 times.
         //The operations in SendEmail must happen asynchronously, as per the project spec.
-        public async Task SendEmail(string host, int port, string userName, string userEmailAddress, string userEmailPassword, string recipientEmailAddress, string messageSubject, string messageBody)
+        public void SendEmail(string host, int port, string userName, string userEmailAddress, string userEmailPassword, string recipientEmailAddress, string messageSubject, string messageBody)
         {
-            //build the message from inputs with MimeKit
-            MimeMessage message = await Task.Run(() => BuildMessage(userName, userEmailAddress, recipientEmailAddress, messageSubject, messageBody));
+            MimeMessage message = BuildMessage(userName, userEmailAddress, recipientEmailAddress, messageSubject, messageBody);
 
             string sendStatus = SendMessage(host, port, userEmailPassword, message);
 
             LogMessage(userName, recipientEmailAddress, messageSubject, messageBody, sendStatus);
-
         }
 
 
@@ -113,7 +111,7 @@ namespace EmailHandler
 
         private void LogMessage(string userName, string recipientEmailAddress, string messageSubject, string messageBody, string sendStatus)
         {
-            using (StreamWriter writer = File.AppendText("log.txt"))
+            using (StreamWriter writer = File.CreateText($"{DateTime.Now.ToString("s").Replace(":", "")}.txt")) //creates a .txt log file named after the time it was sent
             {
                 writer.Write("Log Entry : ");
                 writer.WriteLine($"{DateTime.Now.ToLongTimeString()} {DateTime.Now.ToLongDateString()}");
