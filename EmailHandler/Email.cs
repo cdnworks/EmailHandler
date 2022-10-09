@@ -9,17 +9,19 @@ namespace EmailHandler
         //This class pulls a number of input parameters to construct a MIME formatted email message, which is then sent using SMTP.
         //the message is logged with a timestamp after a successful send, or after attempting and failing to send up to 3 times.
         //The operations in SendEmail must happen asynchronously, as per the project spec.
-        public async Task SendEmail(string host, int port, string userName, string userEmailAddress, string userEmailPassword, string recipientEmailAddress, string subject, string messageBody)
+        public async Task SendEmail(string host, int port, string userName, string userEmailAddress, string userEmailPassword, string recipientEmailAddress, string messageSubject, string messageBody)
         {
             //build the message from inputs with MimeKit
-            MimeMessage message = await Task.Run(() => BuildMessage(userName, userEmailAddress, userEmailPassword, recipientEmailAddress, subject, messageBody));
+            MimeMessage message = await Task.Run(() => BuildMessage(userName, userEmailAddress, recipientEmailAddress, messageSubject, messageBody));
 
-            ConnectAndSend(host, port, userEmailAddress, userEmailPassword, recipientEmailAddress, message);
+            string sendStatus = SendMessage(host, port, userEmailPassword, message);
+
+            LogMessage(userName, recipientEmailAddress, messageSubject, messageBody, sendStatus);
 
         }
 
 
-        private MimeMessage BuildMessage(string userName, string userEmailAddress, string userEmailPassword, string recipientEmailAddress, string subject, string messageBody)
+        private MimeMessage BuildMessage(string userName, string userEmailAddress, string recipientEmailAddress, string subject, string messageBody)
         {
             var message = new MimeMessage();
 
@@ -34,17 +36,19 @@ namespace EmailHandler
         }
 
 
-        private void ConnectAndSend(string host, int port, string userEmailAddress, string userEmailPassword, string recipientEmailAddress, MimeMessage message)
+        private string SendMessage(string host, int port, string userEmailPassword, MimeMessage emailMessage)
         {
-            //pass message status to log at the end of the loop
+            //return value for message sendStatus
             string sendStatus = "N/A";
 
-            //We can give the email sender up to N attempts to connect and send, on the last attempt, the send status is collected.
-            //we could log each failure as it happened, making use of some of these wasted operations but its not really needed.
+            //get info from message
+            string userEmailAddress = emailMessage.From.ToString();
+            string recipientEmailAddress = emailMessage.To.ToString();
+
+            //The problem spec included needing to make up to 3 attempts at sending the message before aborting the send
             for (int i = 0; i < 3; i++)
             {
                 //set up SMTP client, try to connect to the SMTP server and send the message.
-                //hold error info in the case of failure
                 //the client is destroyed after each attempt regardless if it was successful or not
                 //this terminates the connection (if successful) and prevents bad behaviors on further attempts.
                 using (var client = new SmtpClient())
@@ -72,7 +76,7 @@ namespace EmailHandler
                         }
                         catch (AuthenticationException ex)
                         {
-                            sendStatus = $"Invalid user name or password. Message Not Sent";
+                            sendStatus = $"Invalid user name or password. Message Not Sent. {ex.Message}";
                         }
                         catch (SmtpCommandException ex)
                         {
@@ -86,8 +90,7 @@ namespace EmailHandler
                     //try to send the message
                     try
                     {
-                        client.Send(message);
-                        //if the message sends without problems, break the loop.
+                        client.Send(emailMessage);
                         sendStatus = "Successfully Sent";
                         break;
                     }
@@ -104,11 +107,11 @@ namespace EmailHandler
 
                 }
             }
-            LogMessage(userEmailAddress, recipientEmailAddress, message.Subject, message.Body.ToString(), sendStatus);
+            return sendStatus;
         }
 
 
-        private void LogMessage(string userName, string toAddress, string messageSubject, string messageBody, string sendStatus)
+        private void LogMessage(string userName, string recipientEmailAddress, string messageSubject, string messageBody, string sendStatus)
         {
             using (StreamWriter writer = File.AppendText("log.txt"))
             {
@@ -116,7 +119,7 @@ namespace EmailHandler
                 writer.WriteLine($"{DateTime.Now.ToLongTimeString()} {DateTime.Now.ToLongDateString()}");
                 writer.WriteLine($"Message Sent Status: {sendStatus}");
                 writer.WriteLine($"From:    {userName}");
-                writer.WriteLine($"To:      {toAddress}");
+                writer.WriteLine($"To:      {recipientEmailAddress}");
                 writer.WriteLine($"Subject: {messageSubject}");
                 writer.WriteLine($"{messageBody}");
                 writer.WriteLine("------------------------------------------------------------------------------------------------------------------");
