@@ -6,16 +6,37 @@ namespace EmailHandler
 {
     public class Email
     {
+        public string Host { get; init; }
+        public int Port { get; init; }
+        public string UserName { get; init; }
+        public string UserEmail { get; init; }
+        private string UserPassword { get; set; }   //my intuition says there is a smarter and safer way to handle passwords; look into it later
+        public string RecipientEmail { get; init; }
+        public string MessageSubject { get; init; }
+        public string MessageBody { get; init; }
+
+        public Email(string host, int port, string userName, string userEmail, string userPassword, string recipientEmail, string messageSubject, string messageBody)
+        {
+            Host = host;
+            Port = port;
+            UserName = userName;
+            UserEmail = userEmail;
+            UserPassword = userPassword;
+            RecipientEmail = recipientEmail;
+            MessageBody = messageBody;
+        }
+
+
         //This class pulls a number of input parameters to construct a MIME formatted email message, which is then sent using SMTP.
         //the message is logged with a timestamp after a successful send, or after attempting and failing to send up to 3 times.
         //The operations in SendEmail must happen asynchronously, as per the project spec.
-        public void SendEmail(string host, int port, string userName, string userEmailAddress, string userEmailPassword, string recipientEmailAddress, string messageSubject, string messageBody)
+        public void SendEmail()
         {
-            MimeMessage message = BuildMessage(userName, userEmailAddress, recipientEmailAddress, messageSubject, messageBody);
+            MimeMessage message = BuildMessage(UserName, UserEmail, RecipientEmail, MessageSubject, MessageBody);
 
-            string sendStatus = SendMessage(host, port, userEmailPassword, message);
+            string sendStatus = SendMessage(Host, Port, UserPassword, message);
 
-            LogMessage(userName, recipientEmailAddress, messageSubject, messageBody, sendStatus);
+            LogMessage(UserName, RecipientEmail, MessageSubject, MessageBody, sendStatus);
         }
 
 
@@ -111,7 +132,7 @@ namespace EmailHandler
 
         private void LogMessage(string userName, string recipientEmailAddress, string messageSubject, string messageBody, string sendStatus)
         {
-            using (StreamWriter writer = File.CreateText($"{DateTime.Now.ToString("s").Replace(":", "")}.txt")) //creates a .txt log file named after the time it was sent
+            using (StreamWriter writer = File.CreateText($"{DateTime.Now.ToString("s").Replace(":", "")}.txt")) //creates a sortable .txt log file named after the time it was sent
             {
                 writer.Write("Log Entry : ");
                 writer.WriteLine($"{DateTime.Now.ToLongTimeString()} {DateTime.Now.ToLongDateString()}");
