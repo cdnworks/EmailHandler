@@ -23,6 +23,7 @@ namespace EmailHandler
             UserEmail = userEmail;
             UserPassword = userPassword;
             RecipientEmail = recipientEmail;
+            MessageSubject = messageSubject;
             MessageBody = messageBody;
         }
 
