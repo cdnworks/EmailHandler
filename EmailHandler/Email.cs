@@ -6,14 +6,15 @@ namespace EmailHandler
 {
     public class Email
     {
-        public string Host { get; init; }
-        public int Port { get; init; }
-        public string UserName { get; init; }
-        public string UserEmail { get; init; }
+        public string Host { get; set; }
+        public int Port { get; set; }
+        public string UserName { get; set; }
+        public string UserEmail { get; set; }
         private string UserPassword { get; set; }   //my intuition says there is a smarter and safer way to handle passwords; look into it later
-        public string RecipientEmail { get; init; }
-        public string MessageSubject { get; init; }
-        public string MessageBody { get; init; }
+        public string RecipientEmail { get; set; }
+        public string MessageSubject { get; set; }
+        public string MessageBody { get; set; }
+        private string SendStatus { get; set; }     //this property is null until SendMessage is called.
 
         public Email(string host, int port, string userName, string userEmail, string userPassword, string recipientEmail, string messageSubject, string messageBody)
         {
@@ -28,42 +29,38 @@ namespace EmailHandler
         }
 
 
-        //This class pulls a number of input parameters to construct a MIME formatted email message, which is then sent using SMTP.
-        //the message is logged with a timestamp after a successful send, or after attempting and failing to send up to 3 times.
-        //The operations in SendEmail must happen asynchronously, as per the project spec.
+        //This public method is what needs to be called to actually send the email.
+        //Once an Email object is construted properly, and this method is called,
+        //The Email is composed into a mimemessage, sent and a log is generated.
         public void SendEmail()
         {
-            MimeMessage message = BuildMessage(UserName, UserEmail, RecipientEmail, MessageSubject, MessageBody);
+            MimeMessage message = BuildMessage();
 
-            string sendStatus = SendMessage(Host, Port, UserPassword, message);
+            SendMessage(message);
 
-            LogMessage(UserName, RecipientEmail, MessageSubject, MessageBody, sendStatus);
+            LogMessage();
         }
 
 
-        private MimeMessage BuildMessage(string userName, string userEmailAddress, string recipientEmailAddress, string subject, string messageBody)
+        private MimeMessage BuildMessage()
         {
             var message = new MimeMessage();
 
             //the MimeKit BodyBuilder class is used for it's easy string conversion method, useful for logging
             var builder = new BodyBuilder();
-            message.From.Add(new MailboxAddress(userName, userEmailAddress));
-            message.To.Add(MailboxAddress.Parse(recipientEmailAddress));
-            message.Subject = subject;
-            builder.TextBody = messageBody;
+            message.From.Add(new MailboxAddress(UserName, UserEmail));
+            message.To.Add(MailboxAddress.Parse(RecipientEmail));
+            message.Subject = MessageSubject;
+            builder.TextBody = MessageBody;
             message.Body = builder.ToMessageBody();
             return message;
         }
 
 
-        private string SendMessage(string host, int port, string userEmailPassword, MimeMessage emailMessage)
+        private void SendMessage(MimeMessage emailMessage)
         {
             //return value for message sendStatus
             string sendStatus = "N/A";
-
-            //get info from message
-            string userEmailAddress = emailMessage.From.ToString();
-            string recipientEmailAddress = emailMessage.To.ToString();
 
             //The problem spec included needing to make up to 3 attempts at sending the message before aborting the send
             for (int i = 0; i < 3; i++)
@@ -76,7 +73,7 @@ namespace EmailHandler
                     //try to connect to the SMTP server
                     try
                     {
-                        client.Connect(host, port, SecureSocketOptions.SslOnConnect);
+                        client.Connect(Host, Port, SecureSocketOptions.SslOnConnect);
                     }
                     catch (SmtpCommandException ex)
                     {
@@ -92,7 +89,7 @@ namespace EmailHandler
                     {
                         try
                         {
-                            client.Authenticate(userEmailAddress, userEmailPassword);
+                            client.Authenticate(UserEmail, UserPassword);
                         }
                         catch (AuthenticationException ex)
                         {
@@ -127,21 +124,21 @@ namespace EmailHandler
 
                 }
             }
-            return sendStatus;
+            SendStatus = sendStatus;
         }
 
 
-        private void LogMessage(string userName, string recipientEmailAddress, string messageSubject, string messageBody, string sendStatus)
+        private void LogMessage()
         {
-            using (StreamWriter writer = File.CreateText($"{DateTime.Now.ToString("s").Replace(":", "")}.txt")) //creates a sortable .txt log file named after the time it was sent
+            using (StreamWriter writer = File.CreateText("testing.txt")) //creates a sortable .txt log file named after the time it was sent
             {
                 writer.Write("Log Entry : ");
                 writer.WriteLine($"{DateTime.Now.ToLongTimeString()} {DateTime.Now.ToLongDateString()}");
-                writer.WriteLine($"Message Sent Status: {sendStatus}");
-                writer.WriteLine($"From:    {userName}");
-                writer.WriteLine($"To:      {recipientEmailAddress}");
-                writer.WriteLine($"Subject: {messageSubject}");
-                writer.WriteLine($"{messageBody}");
+                writer.WriteLine($"Message Sent Status: {SendStatus}");
+                writer.WriteLine($"From:    {UserName}");
+                writer.WriteLine($"To:      {RecipientEmail}");
+                writer.WriteLine($"Subject: {MessageSubject}");
+                writer.WriteLine($"{MessageBody}");
                 writer.WriteLine("------------------------------------------------------------------------------------------------------------------");
             }
         }
